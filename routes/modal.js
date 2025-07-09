@@ -7,7 +7,7 @@ router.post('/', async (req, res) => {
   const { name, email, phone, service } = req.body;
   try {
     const [result] = await db.query(
-      "INSERT INTO modal_quotes (name, email, phone, service) VALUES (?, ?, ?, ?)",
+      'INSERT INTO modal_quotes (name, email, phone, service) VALUES ($1, $2, $3, $4)',
       [name, email, phone, service]
     );
     res.json({ success: true, id: result.insertId });
