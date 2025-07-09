@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../models/db'); // adjust path if needed
+const db = require('../models/db');
 
+// POST /api/contact
 router.post('/', async (req, res) => {
   const { name, email, phone, message } = req.body;
 
@@ -10,38 +11,33 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const [result] = await db.query(
-      "INSERT INTO contacts (name, email, phone, message) VALUES (?, ?, ?, ?)",
+    const result = await db.query(
+      "INSERT INTO contacts (name, email, phone, message) VALUES ($1, $2, $3, $4) RETURNING id",
       [name, email, phone, message]
     );
-    res.status(201).json({ success: true, id: result.insertId });
+    res.status(201).json({ success: true, id: result.rows[0].id });
   } catch (err) {
     console.error("❌ Error saving contact:", err.message);
     res.status(500).json({ error: "Database error" });
   }
 });
 
-module.exports = router;
-
-
 // GET /api/contact/monthly
 router.get('/monthly', async (req, res) => {
   try {
-    const [rows] = await db.query(`
-  SELECT * FROM contacts
-WHERE MONTH(submitted_on) = MONTH(CURRENT_DATE())
-  AND YEAR(submitted_on) = YEAR(CURRENT_DATE())
-ORDER BY submitted_on DESC;
-`);
+    const result = await db.query(`
+      SELECT * FROM contacts
+      WHERE DATE_TRUNC('month', submitted_on) = DATE_TRUNC('month', CURRENT_DATE)
+      ORDER BY submitted_on DESC
+    `);
 
-
-   const grouped = rows.reduce((acc, row) => {
-  const month = new Date(row.submitted_on).toISOString().slice(0, 7); // "YYYY-MM"
-  if (!acc[month]) acc[month] = [];
-  acc[month].push(row);
-  return acc;
-}, {});
-
+    // Group by YYYY-MM
+    const grouped = result.rows.reduce((acc, row) => {
+      const month = new Date(row.submitted_on).toISOString().slice(0, 7); // "YYYY-MM"
+      if (!acc[month]) acc[month] = [];
+      acc[month].push(row);
+      return acc;
+    }, {});
 
     res.json(grouped);
   } catch (err) {
@@ -50,3 +46,4 @@ ORDER BY submitted_on DESC;
   }
 });
 
+module.exports = router;
