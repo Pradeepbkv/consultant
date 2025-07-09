@@ -6,11 +6,11 @@ const db = require('../models/db');
 router.post('/', async (req, res) => {
   const { name, email, phone, service } = req.body;
   try {
-    const [result] = await db.query(
-      'INSERT INTO modal_quotes (name, email, phone, service) VALUES ($1, $2, $3, $4)',
+    const result = await db.query(
+      'INSERT INTO modal_quotes (name, email, phone, service) VALUES ($1, $2, $3, $4) RETURNING id',
       [name, email, phone, service]
     );
-    res.json({ success: true, id: result.insertId });
+    res.json({ success: true, id: result.rows[0].id });
   } catch (err) {
     console.error("Error saving quote:", err);
     res.status(500).json({ error: "Failed to save quote" });
@@ -20,14 +20,13 @@ router.post('/', async (req, res) => {
 // GET for admin panel
 router.get('/current-month', async (req, res) => {
   try {
-    const [rows] = await db.query(`
+    const result = await db.query(`
       SELECT id, name, email, phone, service, submitted_on
       FROM modal_quotes
-      WHERE MONTH(submitted_on) = MONTH(CURRENT_DATE())
-        AND YEAR(submitted_on) = YEAR(CURRENT_DATE())
+      WHERE DATE_TRUNC('month', submitted_on) = DATE_TRUNC('month', CURRENT_DATE)
       ORDER BY submitted_on DESC
     `);
-    res.json(rows);
+    res.json(result.rows);
   } catch (err) {
     console.error("Error fetching modal data:", err);
     res.status(500).json({ error: "Failed to fetch modal data" });
@@ -35,3 +34,4 @@ router.get('/current-month', async (req, res) => {
 });
 
 module.exports = router;
+
